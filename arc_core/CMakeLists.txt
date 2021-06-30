@@ -142,6 +142,8 @@ add_executable(wifi_handler_node src/wifi_handler_node.cpp src/WifiHandler.cpp i
 add_executable(communication_manager src/communication_manager_node.cpp src/CommunicationManager.cpp include/CommunicationManager.h)
 add_executable(task_handler src/task_handler_node.cpp)
 add_executable(victim_tracker src/VictimTracker.cpp include/VictimTracker.h)
+add_executable(knowledge_manager src/knowledge_manager_node.cpp src/KnowledgeManager.cpp 
+    include/KnowledgeManager.h)
 
 target_link_libraries(wifi_handler_node
    ${catkin_LIBRARIES}
@@ -160,10 +162,16 @@ target_link_libraries(task_handler
    ${catkin_LIBRARIES}
    ${Boost_LIBRARIES}
 )
+
+target_link_libraries(knowledge_manager
+    ${catkin_LIBRARIES}
+)
+
 add_dependencies(wifi_handler_node arc_msgs_generate_message_cpp)
 add_dependencies(communication_manager arc_msgs_generate_message_cpp)
 add_dependencies(task_handler arc_msgs_generate_messages_cpp)
 add_dependencies(victim_tracker arc_msgs_generate_messages_cpp)
+add_dependencies(knowledge_manager arc_msgs_generate_messages_cpp)
 
 #Libraries so we can test these
 #############

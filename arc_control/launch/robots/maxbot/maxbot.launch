@@ -1,10 +1,11 @@
 <!--
-The launch file for a single debrisbot.
+The launch file for a single maxbot.
 -->
 
 <launch>
   <master auto="start"/>
   <arg name="robot_name" default="test_bot"/>
+  <arg name="bot_id" default="0"/>
 
 <group ns="$(arg robot_name)">
 <!-- 
@@ -13,6 +14,7 @@ ARC CORE
 #################################### 
 -->
 <include file="$(find arc_control)/launch/robots/maxbot/maxbot_core.launch">
+  <arg name="bot_id" value="$(arg bot_id)"/>
 </include> 
 
 <!-- 
