@@ -1,5 +1,6 @@
 #include <XmlRpcException.h>
 #include "arc_msgs/TaskRequest.h"
+#include "arc_msgs/BotInfo.h"
 #include "../include/CommunicationManager.h"
 
 #define MAX_QUEUE_SIZE 1000
@@ -16,16 +17,26 @@ CommunicationManager::CommunicationManager() {
     //reading parameters
     ROS_INFO("Setting up Communication manager");
     //setting up subscribers
-    this->incoming_announcements_sub = global_handle.subscribe("wifi_handler/incoming_announcements", MAX_QUEUE_SIZE, &CommunicationManager::process_incoming_announcements_cb, this);
-    this->incoming_requests_sub = global_handle.subscribe("wifi_handler/incoming_requests", MAX_QUEUE_SIZE, &CommunicationManager::process_incoming_requests_cb, this);
-    this->incoming_responses_sub = global_handle.subscribe("wifi_handler/incoming_responses", MAX_QUEUE_SIZE, &CommunicationManager::process_incoming_responses_cb, this);
+    this->incoming_announcements_sub = global_handle.subscribe(
+        "wifi_handler/incoming_announcements", MAX_QUEUE_SIZE, 
+        &CommunicationManager::process_incoming_announcements_cb, this);
+    this->incoming_requests_sub = global_handle.subscribe("wifi_handler/incoming_requests", 
+        MAX_QUEUE_SIZE, &CommunicationManager::process_incoming_requests_cb, this);
+    this->incoming_responses_sub = global_handle.subscribe("wifi_handler/incoming_responses", 
+        MAX_QUEUE_SIZE, &CommunicationManager::process_incoming_responses_cb, this);
 
     //setting up publishers
-    this->outgoing_announcements_pub = global_handle.advertise<arc_msgs::WirelessAnnouncement>("wifi_handler/outgoing_announcements", MAX_QUEUE_SIZE);
-    this->outgoing_requests_pub = global_handle.advertise<arc_msgs::WirelessRequest>("wifi_handler/outgoing_requests", MAX_QUEUE_SIZE);
-    this->outgoing_responses_pub = global_handle.advertise<arc_msgs::WirelessResponse>("wifi_handler/outgoing_responses", MAX_QUEUE_SIZE);
+    this->outgoing_announcements_pub = global_handle.advertise<arc_msgs::WirelessAnnouncement>(
+        "wifi_handler/outgoing_announcements", MAX_QUEUE_SIZE);
+    this->outgoing_requests_pub = global_handle.advertise<arc_msgs::WirelessRequest>(
+        "wifi_handler/outgoing_requests", MAX_QUEUE_SIZE);
+    this->outgoing_responses_pub = global_handle.advertise<arc_msgs::WirelessResponse>(
+        "wifi_handler/outgoing_responses", MAX_QUEUE_SIZE);
 
-    this->task_requests_pub = local_handle.advertise<arc_msgs::TaskRequest>("task_requests", MAX_QUEUE_SIZE);
+    this->task_requests_pub = local_handle.advertise<arc_msgs::TaskRequest>("task_requests", 
+        MAX_QUEUE_SIZE);
+    this->bot_info_pub = local_handle.advertise<arc_msgs::BotInfo>("bot_information", 
+        MAX_QUEUE_SIZE);
 
     /**
      * Populating valid task list

@@ -62,6 +62,7 @@ add_message_files(
    WirelessRequest.msg
    TaskRequest.msg
    BotInfo.msg
+   BotAttributes.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -72,6 +73,9 @@ add_service_files(
    MoveAlterableObject.srv
    DropMarker.srv
    Attributes.srv
+   BotInfoRequest.srv
+   CurrentTeam.srv
+   TaskSuitability.srv
 )
 
 ## Generate actions in the 'action' folder

@@ -1,5 +1,8 @@
+#include <algorithm>
+
 #include "../include/KnowledgeManager.h"
 #include "arc_msgs/BotInfo.h"
+#include "arc_msgs/Attributes.h"
 #include "ros/ros.h"
 
 #define MAX_QUEUE_SIZE 1000
@@ -33,15 +36,25 @@ KnowledgeManager::KnowledgeManager()
 
   team_timestamp = ros::Time::now();
 
+  // TODO Role suitability calculation
+  role_suitability = 100;
+
   // Advertise services
   attributes_server = this->local_handle.advertiseService("attributes", 
       &KnowledgeManager::attributesCB, this);
+  bot_info_server = local_handle.advertiseService("bot_info_request", &KnowledgeManager::botInfoCB,
+      this);
+  current_team_server = local_handle.advertiseService("current_team", 
+      &KnowledgeManager::currentTeamCB, this);
 
   // Advertise publishers
   bot_info_pub = local_handle.advertise<arc_msgs::BotInfo>("bot_info", MAX_QUEUE_SIZE);
 
   info_timer = local_handle.createTimer(ros::Duration(info_pub_period), 
       &KnowledgeManager::publishInfo, this);
+
+  bot_info_sub = global_handle.subscribe("communication_manager/bot_information", MAX_QUEUE_SIZE,
+      &KnowledgeManager::updateInfo, this);
 }
 
 void KnowledgeManager::getPhysAttributes()
@@ -149,34 +162,78 @@ void KnowledgeManager::run()
   }
 }
 
+/*
+ * SERVICE CALLBACKS
+ */
+
 bool KnowledgeManager::attributesCB(arc_msgs::Attributes::Request &req,
     arc_msgs::Attributes::Response &res)
 {
   // Physical
-  res.locomotion = locomotion;
-  res.width = width;
-  res.length = length;
-  res.expendability = expendability;
-  res.debris_remover = debris_remover;
-  res.marker_count = marker_count;
+  res.attributes.locomotion = locomotion;
+  res.attributes.width = width;
+  res.attributes.length = length;
+  res.attributes.expendability = expendability;
+  res.attributes.debris_remover = debris_remover;
+  res.attributes.marker_count = marker_count;
 
   // Computational
-  res.victim_tracker = victim_tracker;
-  res.frontier_finder = frontier_finder;
-  res.maintain_team_map = maintain_team_map;
-  res.assign_tasks = assign_tasks;
-  res.planner = planner;
+  res.attributes.victim_tracker = victim_tracker;
+  res.attributes.frontier_finder = frontier_finder;
+  res.attributes.maintain_team_map = maintain_team_map;
+  res.attributes.assign_tasks = assign_tasks;
+  res.attributes.planner = planner;
 
   // Sensory
-  res.victim_sensor = victim_sensor;
-  res.robot_sensor = robot_sensor;
-  res.sonar_sensors = sonar_sensors;
-  res.sonar_range = sonar_range;
-  res.laser_rangefinder = laser_rangefinder;
-  res.victim_marker_detector = victim_marker_detector;
+  res.attributes.victim_sensor = victim_sensor;
+  res.attributes.robot_sensor = robot_sensor;
+  res.attributes.sonar_sensors = sonar_sensors;
+  res.attributes.sonar_range = sonar_range;
+  res.attributes.laser_rangefinder = laser_rangefinder;
+  res.attributes.victim_marker_detector = victim_marker_detector;
   
   return true;
 }
+
+bool KnowledgeManager::botInfoCB(arc_msgs::BotInfoRequest::Request& req,
+    arc_msgs::BotInfoRequest::Response& res)
+{
+  res.info.robot_id = robot_id;
+  res.info.team_id = team_id;
+  res.info.role = role;
+  res.info.suitability = role_suitability;
+
+  return true;
+}
+
+bool KnowledgeManager::currentTeamCB(arc_msgs::CurrentTeam::Request& req,
+    arc_msgs::CurrentTeam::Response& res)
+{
+  ROS_INFO("Fullfilling current team request");
+
+  // Respond with all known bots who are part of our team and whose information isn't stale
+  for (KnownBot bot : known_bots)
+  {
+    ros::Duration age = ros::Time::now() - bot.timestamp;  // How old the info is
+    
+    if (bot.team_id == team_id && age < stale_duration)
+    {
+      arc_msgs::BotInfo bot_info;
+      bot_info.robot_id = bot.robot_id;
+      bot_info.team_id = bot.team_id;
+      bot_info.role = bot.role;
+      bot_info.suitability = bot.role_suitability;
+    
+      res.team.push_back(bot_info);
+    }
+  }
+
+  return true;
+}
+
+/*
+ * TIMER AND SUBSCRIBER CALLBACKS
+ */
 
 void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
 {
@@ -190,4 +247,29 @@ void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
   info.suitability = role_suitability;
 
   bot_info_pub.publish(info);
+}
+
+void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
+{
+  // Find if we already know about this bot
+  auto found{ std::find_if(known_bots.begin(), known_bots.end(), 
+      [info](KnownBot a) {
+        return (a.robot_id == info.robot_id);
+      }) };
+
+  // Add bot if we don't already know about it or update if we do
+  if (found == known_bots.end())
+  {
+    ROS_INFO("Adding bot %d to our knowledge", info.robot_id);
+    KnownBot new_bot{ info.robot_id, info.team_id, info.role, info.suitability, ros::Time::now() };
+    known_bots.push_back(new_bot);
+  }
+  else
+  {
+    ROS_INFO("Updating info of robot %d", found->robot_id);
+    found->team_id = info.team_id;
+    found->role = info.role;
+    found->role_suitability = info.suitability;
+    found->timestamp = ros::Time::now();
+  }
 }

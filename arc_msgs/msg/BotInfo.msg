@@ -2,4 +2,4 @@
 int32 robot_id
 int32 team_id
 int32 role
-float64 suitability
+int32 suitability

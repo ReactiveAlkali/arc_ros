@@ -17,7 +17,7 @@
 #include "arc_msgs/WirelessRequest.h"
 #include "arc_msgs/WirelessResponse.h"
 #include "arc_msgs/TaskRequest.h"
-
+#include "arc_msgs/BotInfo.h"
 
 class CommunicationManager {
 private:
@@ -40,6 +40,11 @@ private:
      * Task requests that made it through the communication managers filter.
      */
     ros::Publisher task_requests_pub;
+
+    /**
+     * Bot info attached to all incoming communications
+     */
+    ros::Publisher bot_info_pub;
 
     ros::NodeHandle local_handle;
     ros::NodeHandle global_handle;

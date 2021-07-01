@@ -11,7 +11,10 @@
 
 #include "ros/ros.h"
 #include "arc_msgs/Attributes.h"
-#include <list>
+#include "arc_msgs/BotInfo.h"
+#include "arc_msgs/BotInfoRequest.h"
+#include "arc_msgs/CurrentTeam.h"
+#include <vector>
 
 class KnowledgeManager
 {
@@ -23,6 +26,8 @@ private:
   /// How often in seconds to publish bot info
   const int info_pub_period = 15;
 
+  /// How long to remember information
+  const ros::Duration stale_duration = ros::Duration(3 * 60);
   
   /* PHYSICAL ATTRIBUTES */
 
@@ -87,18 +92,22 @@ private:
 
   /* ENCOUNTERED ROBOTS */
 
-  /// Stores information on a known robot
+  /**
+   * Stores information on an encountered robot
+   */
   struct KnownBot
   {
     int robot_id;
     int team_id;
-    std::string role;
-    double role_suitability;
+    int role;
+    int role_suitability;
     ros::Time timestamp;
   };
 
-  /// Stores knowledge on encountered robots
-  std::list<KnownBot> known_robots;
+  /**
+   * Stores knowledge on all encountered robots
+   */
+  std::vector<KnownBot> known_bots;
 
   /* ROBOT INFORMATION */
 
@@ -116,15 +125,28 @@ private:
   int role;
 
   /// The robot's suitability to the current role
-  double role_suitability;
+  int role_suitability;
 
-  /* SERVICES */
+  /* COMMUNICATION  */
 
   /// Service to retrieve attribute information
   ros::ServiceServer attributes_server;
 
+  /**
+   * Service to provide information on the robot
+   */
+  ros::ServiceServer bot_info_server;
+
+  /**
+   * Service to provide current team information
+   */
+  ros::ServiceServer current_team_server;
+
   /// Publishes info about the bot
   ros::Publisher bot_info_pub;
+
+  /// Subcribes to information coming from other robots
+  ros::Subscriber bot_info_sub;
 
   /// Timer to periodically publish self info
   ros::Timer info_timer;
@@ -156,9 +178,30 @@ public:
       arc_msgs::Attributes::Response &res);
 
   /**
+   * Fullfills requests to retrieve current information on the bot
+   * @param req The request sent to the knowledge manager
+   * @param res The knowledge manager's response to the request
+   */
+  bool botInfoCB(arc_msgs::BotInfoRequest::Request& req,
+      arc_msgs::BotInfoRequest::Response& res);
+
+  /**
+   * Fullfills requests to retrieve the current team information
+   * @param req Request sent to the server
+   * @param res Server's response to the request
+   */
+  bool currentTeamCB(arc_msgs::CurrentTeam::Request& req,
+      arc_msgs::CurrentTeam::Response& res);
+
+  /**
    * Timer callback to publish self info
    */
   void publishInfo(const ros::TimerEvent& event);
+
+  /**
+   * Updates our information about other robots
+   */
+  void updateInfo(const arc_msgs::BotInfo& info);
 };
 
 #endif //ARC_CORE_KNOWLEDGEMANAGER_H

@@ -1,2 +1,4 @@
----
 arc_msgs/BotAttributes attributes
+---
+int32 suitability
+

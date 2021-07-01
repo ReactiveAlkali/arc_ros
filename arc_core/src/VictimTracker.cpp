@@ -33,7 +33,9 @@ void VictimTracker::start() {
     ros::Rate r(10);
 
     while(ros::ok()) {
-        ROS_INFO("Confirmed %d victims. Potentially %d victims. Awaiting support for %d victims", this->confirmedVictims.size(), this->potentialVictims.size(), this->awaitingConfirmation.size());
+        ROS_INFO("Confirmed %lu victims. Potentially %lu victims. Awaiting support for %lu victims", 
+            this->confirmedVictims.size(), this->potentialVictims.size(), 
+            this->awaitingConfirmation.size());
         evaluatePotentialVictims();
 
         r.sleep();

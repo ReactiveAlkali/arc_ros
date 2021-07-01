@@ -8,6 +8,7 @@
 #ifndef ARC_TASKS_TASKSERVER_H
 #define ARC_TASKS_TASKSERVER_H
 #include "arc_msgs/ArcTaskAction.h"
+#include "ros/ros.h"
 
 class TaskServer {
 protected:
@@ -15,6 +16,11 @@ protected:
      * Keep track of most recent goal sent to this server.
      */
     arc_msgs::ArcTaskGoal recent_goal;
+
+    /**
+     * Service server to provide suitability
+     */
+    ros::
 private:
     /**
      * Perform any routine startup procedures when this task instance is started.
