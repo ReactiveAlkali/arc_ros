@@ -1,4 +1,4 @@
-arc_msgs/BotAttributes attributes
 ---
+bool meets_minimum_requirements
 int32 suitability
 

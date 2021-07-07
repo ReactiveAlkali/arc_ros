@@ -3,41 +3,59 @@
 #include "dynamic_reconfigure/Config.h"
 #include "boost/algorithm/string.hpp"
 #include "TaskServer.h"
-
+#include "arc_msgs/Attributes.h"
 
 #define MAX_QUEUE_SIZE 1000
 
-TaskGuidedCleanDebrisServer::TaskGuidedCleanDebrisServer() : server(global_handle, "task_guided_clean_debris", boost::bind(&TaskServer::goal_cb, this, _1), false)
+TaskGuidedCleanDebrisServer::TaskGuidedCleanDebrisServer() : 
+  server(global_handle, "task_guided_clean_debris", boost::bind(&TaskServer::goal_cb, this, _1), 
+      false)
 {
-    ros::NodeHandle local_handle("task_guided_clean_debris_server");
-    ros::Timer timer = global_handle.createTimer(ros::Duration(60), &TaskGuidedCleanDebrisServer::explore_timer_cb, this, false);
-    this->debris_sub = global_handle.subscribe("detect_debris_ps/debris_locations", MAX_QUEUE_SIZE, &TaskGuidedCleanDebrisServer::debris_locations_cb, this);
-    this->base_pos_sub = global_handle.subscribe("base_pose_ground_truth", MAX_QUEUE_SIZE, &TaskGuidedCleanDebrisServer::base_pose_cb, this);
-    this->pose_listener;
+  ros::NodeHandle local_handle("task_guided_clean_debris_server");
+  ros::Timer timer = global_handle.createTimer(ros::Duration(60), 
+      &TaskGuidedCleanDebrisServer::explore_timer_cb, this, false);
+  this->debris_sub = global_handle.subscribe("detect_debris_ps/debris_locations", MAX_QUEUE_SIZE, 
+      &TaskGuidedCleanDebrisServer::debris_locations_cb, this);
+  this->base_pos_sub = global_handle.subscribe("base_pose_ground_truth", MAX_QUEUE_SIZE, 
+      &TaskGuidedCleanDebrisServer::base_pose_cb, this);
+  this->pose_listener;
 
-    this->debris_success_count = 0;
+  this->debris_success_count = 0;
 
-    this->local_handle = local_handle;
-    this->abandon_failed_debris_timer = global_handle.createTimer(ros::Duration(60), &TaskGuidedCleanDebrisServer::abandon_failed_debris_timer_cb, this, false);
-    this->clean_debris_timer = global_handle.createTimer(ros::Duration(60), &TaskGuidedCleanDebrisServer::clean_debris_timer_cb, this, false);
-    this->clean_debris_timer.stop();
-    this->abandon_failed_debris_timer.stop();
-    //TODO: Handle pre-empt callback as well
+  this->local_handle = local_handle;
+  this->abandon_failed_debris_timer = global_handle.createTimer(ros::Duration(60), 
+      &TaskGuidedCleanDebrisServer::abandon_failed_debris_timer_cb, this, false);
+  this->clean_debris_timer = global_handle.createTimer(ros::Duration(60), 
+      &TaskGuidedCleanDebrisServer::clean_debris_timer_cb, this, false);
+  this->clean_debris_timer.stop();
+  this->abandon_failed_debris_timer.stop();
+  //TODO: Handle pre-empt callback as well
 
-    this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>("arc_base/toggle_schema");
-    this->move_to_debris_client = global_handle.serviceClient<arc_msgs::NavigationRequest>("move_to_goal_ms/move_to_goal");
-    this->abort_all_goals_client = global_handle.serviceClient<std_srvs::Trigger>("navigation_adapter/abort_goals");
+  /*
+   * Setup service clients
+   */
+  this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>(
+      "arc_base/toggle_schema");
+  this->move_to_debris_client = global_handle.serviceClient<arc_msgs::NavigationRequest>(
+      "move_to_goal_ms/move_to_goal");
+  this->abort_all_goals_client = global_handle.serviceClient<std_srvs::Trigger>(
+      "navigation_adapter/abort_goals");
+  attributes_client = global_handle.serviceClient<arc_msgs::Attributes>(
+      "knowledge_manager/attributes");
 
-    //Enable the move_to_goal schema since we will be using it throughout task.
-    dynamic_reconfigure::BoolParameter move_to_goal_ms;
-    arc_msgs::ToggleSchema request;
-    move_to_goal_ms.name = "move_to_goal_ms";
-    move_to_goal_ms.value = true;
-    request.request.schema.push_back(move_to_goal_ms); //allow robot to wander around randomly
-    this->arc_base_client.call(request);
-    this->server.start();
+  suitability_server = local_handle.advertiseService("suitability", 
+      &TaskGuidedCleanDebrisServer::suitability_cb, this);
 
-    this->instance_state.currently_cleaning = false;
+  //Enable the move_to_goal schema since we will be using it throughout task.
+  dynamic_reconfigure::BoolParameter move_to_goal_ms;
+  arc_msgs::ToggleSchema request;
+  move_to_goal_ms.name = "move_to_goal_ms";
+  move_to_goal_ms.value = true;
+  request.request.schema.push_back(move_to_goal_ms); //allow robot to wander around randomly
+  this->arc_base_client.call(request);
+  this->server.start();
+
+  this->instance_state.currently_cleaning = false;
 }
 
 void TaskGuidedCleanDebrisServer::clean_debris_timer_cb(const ros::TimerEvent &event) {
@@ -405,4 +423,29 @@ void TaskGuidedCleanDebrisServer::StateAbandonFailedDebris() {
         this->instance_state.currently_abandoning = true;
         this->instance_state.currently_cleaning = false;
     }
+}
+
+bool TaskGuidedCleanDebrisServer::suitability_cb(arc_msgs::TaskSuitability::Request& req,
+    arc_msgs::TaskSuitability::Response& res)
+{
+  arc_msgs::Attributes attributes;
+
+  if (attributes_client.call(attributes))
+  {
+    bool meet_min = attributes.response.debris_remover;
+    int suitability{ 0 };
+    
+    if (meet_min)
+      suitability = 100;
+
+    res.meets_minimum_requirements = meet_min;
+    res.suitability = suitability;
+  }
+  else
+  {
+    ROS_ERROR("Failed to retrieve attributes");
+    return false;
+  }
+
+  return true;
 }

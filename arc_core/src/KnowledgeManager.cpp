@@ -169,28 +169,30 @@ void KnowledgeManager::run()
 bool KnowledgeManager::attributesCB(arc_msgs::Attributes::Request &req,
     arc_msgs::Attributes::Response &res)
 {
+  ROS_INFO("Attributes request recieved");
+
   // Physical
-  res.attributes.locomotion = locomotion;
-  res.attributes.width = width;
-  res.attributes.length = length;
-  res.attributes.expendability = expendability;
-  res.attributes.debris_remover = debris_remover;
-  res.attributes.marker_count = marker_count;
+  res.locomotion = locomotion;
+  res.width = width;
+  res.length = length;
+  res.expendability = expendability;
+  res.debris_remover = debris_remover;
+  res.marker_count = marker_count;
 
   // Computational
-  res.attributes.victim_tracker = victim_tracker;
-  res.attributes.frontier_finder = frontier_finder;
-  res.attributes.maintain_team_map = maintain_team_map;
-  res.attributes.assign_tasks = assign_tasks;
-  res.attributes.planner = planner;
+  res.victim_tracker = victim_tracker;
+  res.frontier_finder = frontier_finder;
+  res.maintain_team_map = maintain_team_map;
+  res.assign_tasks = assign_tasks;
+  res.planner = planner;
 
   // Sensory
-  res.attributes.victim_sensor = victim_sensor;
-  res.attributes.robot_sensor = robot_sensor;
-  res.attributes.sonar_sensors = sonar_sensors;
-  res.attributes.sonar_range = sonar_range;
-  res.attributes.laser_rangefinder = laser_rangefinder;
-  res.attributes.victim_marker_detector = victim_marker_detector;
+  res.victim_sensor = victim_sensor;
+  res.robot_sensor = robot_sensor;
+  res.sonar_sensors = sonar_sensors;
+  res.sonar_range = sonar_range;
+  res.laser_rangefinder = laser_rangefinder;
+  res.victim_marker_detector = victim_marker_detector;
   
   return true;
 }

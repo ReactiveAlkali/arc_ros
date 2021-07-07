@@ -1,17 +1,27 @@
 #include "TaskExploreServer.h"
+#include "arc_msgs/Attributes.h"
 #include "arc_msgs/ToggleSchema.h"
-TaskExploreServer::TaskExploreServer() : server(global_handle, "task_explore", boost::bind(&TaskExploreServer::goal_cb, this, _1), false)
+
+TaskExploreServer::TaskExploreServer() : 
+  server(global_handle, "task_explore", boost::bind(&TaskExploreServer::goal_cb, this, _1), false)
 {
-    ros::NodeHandle local_handle("task_explore_server");
-    ros::Timer timer = global_handle.createTimer(ros::Duration(60), &TaskExploreServer::explore_timer_cb, this, false);
-    timer.stop(); //make sure this thing isn't running
+  ros::NodeHandle local_handle("task_explore_server");
+  ros::Timer timer = global_handle.createTimer(ros::Duration(60), 
+      &TaskExploreServer::explore_timer_cb, this, false);
+  timer.stop(); //make sure this thing isn't running
 
-    this->local_handle = local_handle;
-    this->explore_timer = timer;
-    //TODO: Handle pre-empt callback as well
+  this->local_handle = local_handle;
+  this->explore_timer = timer;
+  //TODO: Handle pre-empt callback as well
 
-    this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>("arc_base/toggle_schema");
-    this->server.start();
+  suitability_server = local_handle.advertiseService("suitability", 
+      &TaskExploreServer::suitability_cb, this);
+  
+  attributes_client = global_handle.serviceClient<arc_msgs::Attributes>(
+      "knowledge_manager/attributes");
+  this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>(
+      "arc_base/toggle_schema");
+  this->server.start();
 }
 
 void TaskExploreServer::goal_cb(const arc_msgs::ArcTaskGoalConstPtr &goal) {
@@ -42,55 +52,99 @@ void TaskExploreServer::shutdown() {
     this->result.final_state = "DoneCleanDebris";
 }
 
-void TaskExploreServer::startup(const arc_msgs::ArcTaskGoalConstPtr &goal) {
-    this->state = STATE_StartExploring;
+void TaskExploreServer::startup(const arc_msgs::ArcTaskGoalConstPtr &goal) 
+{
+  this->state = STATE_StartExploring;
 
-    ROS_INFO("Starting up task_explore");
+  ROS_INFO("Starting up task_explore");
 }
 
-void TaskExploreServer::StateStartExploring() {
-    arc_msgs::ToggleSchema request;
+void TaskExploreServer::StateStartExploring() 
+{
+  arc_msgs::ToggleSchema request;
 
-    dynamic_reconfigure::BoolParameter random_wander_ms;
-    random_wander_ms.name = "random_wander_ms";
-    random_wander_ms.value = true;
-    request.request.schema.push_back(random_wander_ms); //allow robot to wander around randomly
+  dynamic_reconfigure::BoolParameter random_wander_ms;
+  random_wander_ms.name = "random_wander_ms";
+  random_wander_ms.value = true;
+  request.request.schema.push_back(random_wander_ms); //allow robot to wander around randomly
 
-    this->arc_base_client.call(request);
+  this->arc_base_client.call(request);
 
-    //start the timer
-    this->explore_timer.start();
+  //start the timer
+  this->explore_timer.start();
 
-    this->state = STATE_Exploring;
+  this->state = STATE_Exploring;
 }
 
-void TaskExploreServer::StateExploring() {
+void TaskExploreServer::StateExploring() 
+{
 }
 
-void TaskExploreServer::StateDoneExploring() {
-    //MARK TASK AS SUCCESSFUL HERE. WE ARE DONE
-    result.completed = true;
-    result.final_state = "STATE_DoneExploring";
-    this->explore_timer.stop();
-    this->shutdown();
+void TaskExploreServer::StateDoneExploring() 
+{
+  //MARK TASK AS SUCCESSFUL HERE. WE ARE DONE
+  result.completed = true;
+  result.final_state = "STATE_DoneExploring";
+  this->explore_timer.stop();
+  this->shutdown();
 }
 
-void TaskExploreServer::process() {
-    ros::Rate r(10);
+void TaskExploreServer::process() 
+{
+  ros::Rate r(10);
 
-    //toggling of server (setSucceeded() etc, should only be done in this loop, not within state methods)
-    while(ros::ok() && server.isActive()) {
-        if (state == STATE_StartExploring) {
-            ROS_INFO("In state: StartExploring");
-            StateStartExploring();
-        } else if (state == STATE_Exploring) {
-            StateExploring();
-        } else if (state == STATE_DoneExploring) {
-            ROS_INFO("In state: DoneExploring");
-            StateDoneExploring();
-            server.setSucceeded(this->result);
-        }
-
-        r.sleep();
+  //toggling of server (setSucceeded() etc, should only be done in this loop, 
+  //not within state methods)
+  while(ros::ok() && server.isActive()) 
+  {
+    if (state == STATE_StartExploring) 
+    {
+      ROS_INFO("In state: StartExploring");
+      StateStartExploring();
+    } 
+    else if (state == STATE_Exploring) 
+    {
+      StateExploring();
+    } 
+    else if (state == STATE_DoneExploring) 
+    {
+      ROS_INFO("In state: DoneExploring");
+      StateDoneExploring();
+      server.setSucceeded(this->result);
     }
+
+    r.sleep();
+  }
+}
+
+bool TaskExploreServer::suitability_cb(arc_msgs::TaskSuitability::Request& req,
+    arc_msgs::TaskSuitability::Response& res)
+{
+  arc_msgs::Attributes attributes;
+
+  // Get our attributes
+  if (attributes_client.call(attributes))  
+  {
+    bool meets_min = attributes.response.laser_rangefinder || attributes.response.sonar_sensors;
+
+    // Calculate the suitability
+    int suitability{ 0 };
+    if (meets_min)
+    {
+      if (attributes.response.laser_rangefinder)
+        suitability = 100;
+      else if (attributes.response.sonar_sensors)
+        suitability = 100;
+    }
+
+    res.meets_minimum_requirements = meets_min;
+    res.suitability = suitability;
+  }
+  else
+  {
+    ROS_ERROR("Attributes not recieved");
+    return false;
+  }
+
+  return true;
 }

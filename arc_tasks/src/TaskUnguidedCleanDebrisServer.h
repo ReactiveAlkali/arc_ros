@@ -227,6 +227,12 @@ public:
     void clean_debris_timer_cb(const ros::TimerEvent &event);
     void debris_locations_cb(const arc_msgs::DetectedDebris &debris);
     void base_pose_cb(const nav_msgs::Odometry &odom);
+
+    /**
+     * Callback to handle a suitability service requests
+     */
+    bool suitability_cb(arc_msgs::TaskSuitability::Request& req,
+        arc_msgs::TaskSuitability::Response& res);
 };
 
 #endif //ARC_TASKS_TASKUNGUIDEDCLEANDEBRISSERVER_H

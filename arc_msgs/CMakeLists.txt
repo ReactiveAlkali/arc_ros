@@ -62,7 +62,6 @@ add_message_files(
    WirelessRequest.msg
    TaskRequest.msg
    BotInfo.msg
-   BotAttributes.msg
 )
 
 ## Generate services in the 'srv' folder

@@ -90,6 +90,12 @@ public:
      * @param event some data about how long we explored.
      */
     void explore_timer_cb(const ros::TimerEvent &event);
+
+    /**
+     * Callback to handle a suitability service call
+     */
+    bool suitability_cb(arc_msgs::TaskSuitability::Request& req,
+        arc_msgs::TaskSuitability::Response& res);
 };
 
 #endif //ARC_TASKS_TASKEXPLORE_H

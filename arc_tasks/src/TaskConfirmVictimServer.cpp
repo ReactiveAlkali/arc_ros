@@ -1,3 +1,4 @@
+#include "arc_msgs/Attributes.h"
 #include "arc_msgs/ToggleSchema.h"
 #include <arc_msgs/WirelessAnnouncement.h>
 #include "TaskConfirmVictimServer.h"
@@ -35,6 +36,11 @@ TaskConfirmVictimServer::TaskConfirmVictimServer(const std::string &robotName, c
     this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>((topic_ns+"arc_base/toggle_schema"));
     this->move_to_debris_client = global_handle.serviceClient<arc_msgs::NavigationRequest>((topic_ns+"move_to_goal_ms/move_to_goal"));
     this->abort_all_goals_client = global_handle.serviceClient<std_srvs::Trigger>((topic_ns+"navigation_adapter/abort_goals"));
+    attributes_client = global_handle.serviceClient<arc_msgs::Attributes>(
+        "knowledge_manager/attributes");
+
+    suitability_server = local_handle.advertiseService("suitability", 
+        &TaskConfirmVictimServer::suitability_cb, this);
 
     //Enable the move_to_goal schema since we will be using it throughout task.
     dynamic_reconfigure::BoolParameter move_to_goal_ms;
@@ -458,3 +464,35 @@ void TaskConfirmVictimServer::cleanup() {
     this->result.completed = false;
 }
 
+bool TaskConfirmVictimServer::suitability_cb(arc_msgs::TaskSuitability::Request& req,
+    arc_msgs::TaskSuitability::Response& res)
+{
+  enum VictimSensor{ none, basic, advanced };
+
+  arc_msgs::Attributes attributes;
+
+  if (attributes_client.call(attributes))
+  {
+    /*
+     * M = { HasVictimDetector = true ^ CanConfirmVictims = true }
+     */
+    bool meets_min = attributes.response.victim_sensor == advanced;
+    int suitability{ 0 };
+
+    /*
+     * S = { CanConfirmVictims[80] = true ^ HasVictimDetector[20] = true }
+     */
+    if (meets_min)
+      suitability = 100;
+    
+    res.meets_minimum_requirements = meets_min;
+    res.suitability = suitability;
+  }
+  else
+  {
+    ROS_ERROR("Failed to retrieve attributes");
+    return false;
+  }
+
+  return true;
+}

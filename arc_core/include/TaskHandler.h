@@ -47,6 +47,11 @@ protected:
     std::map<std::string, ActionClient *> task_clients;
 
     /**
+     * Mapping of all the task names to their suitability clients
+     */
+    std::map<std::string, ros::ServiceClient> suitability_clients;
+
+    /**
      * List of the task requests we've been given but have not started. If we are currently in the middle of a request, then we put this here.
      */
     std::vector<TaskGoal> task_backlog;
@@ -93,14 +98,13 @@ public:
     void processRequest(const TaskGoal &goal);
 
      /**
-     * Determine if the request to the TaskHandler is doable, that is, it can be done at the same time as other
-     * tasks.
+     * Determine if the request to the TaskHandler is doable, 
      * can be completed at the same time, and have valid information provided.
      *
      * @param goal: The requests of all the tasks to work on.
-     * @return True if the request is valid and these tasks will be activated. False otherwise.
+     * @return Suitability if the request is acceptable. 0 otherwise.
      */
-    bool isAcceptableRequest(const TaskGoal &goal);
+    int isAcceptableRequest(const TaskGoal &goal);
 
     /**
      * Peak at the task backlog and see how many tasks are upcoming.

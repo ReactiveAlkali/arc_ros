@@ -8,6 +8,7 @@
 #ifndef ARC_TASKS_TASKSERVER_H
 #define ARC_TASKS_TASKSERVER_H
 #include "arc_msgs/ArcTaskAction.h"
+#include "arc_msgs/TaskSuitability.h"
 #include "ros/ros.h"
 
 class TaskServer {
@@ -20,7 +21,13 @@ protected:
     /**
      * Service server to provide suitability
      */
-    ros::
+    ros::ServiceServer suitability_server;
+
+    /**
+     * Client to obtain the bot's attributes
+     */
+    ros::ServiceClient attributes_client;
+
 private:
     /**
      * Perform any routine startup procedures when this task instance is started.
@@ -39,11 +46,18 @@ private:
      */
     virtual void shutdown() = 0;
 
+
 public:
      /**
      * Receives request to perform the task.
      */
     void goal_cb(const arc_msgs::ArcTaskGoalConstPtr &goal);
+
+    /**
+     * Handles requests to get the task's suitability
+     */
+    //virtual bool suitability_cb(arc_msgs::TaskSuitability::Request& req,
+        //arc_msgs::TaskSuitability::Response& res);
 };
 
 #endif //ARC_TASKS_TASKSERVER_H

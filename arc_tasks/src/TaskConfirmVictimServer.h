@@ -259,6 +259,9 @@ public:
      * Cleanup the variables and state information set during a task so we may call it again.
      */
     void cleanup();
+
+    bool suitability_cb(arc_msgs::TaskSuitability::Request& req,
+        arc_msgs::TaskSuitability::Response& res);
 };
 
 #endif //ARC_TASKS_TASKCONFIRMVICTIMSERVER_H

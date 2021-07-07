@@ -1,4 +1,5 @@
 #include "arc_msgs/ToggleSchema.h"
+#include "arc_msgs/Attributes.h"
 #include "TaskUnguidedCleanDebrisServer.h"
 
 #define MAX_QUEUE_SIZE 1000
@@ -20,10 +21,18 @@ TaskUnguidedCleanDebrisServer::TaskUnguidedCleanDebrisServer() : server(global_h
     this->clean_debris_timer = global_handle.createTimer(ros::Duration(60), &TaskUnguidedCleanDebrisServer::clean_debris_timer_cb, this, false);
     this->clean_debris_timer.stop();
 
+    suitability_server = local_handle.advertiseService("suitability", 
+        &TaskUnguidedCleanDebrisServer::suitability_cb, this);
+
     //TODO: Handle pre-empt callback as well
-    this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>("arc_base/toggle_schema");
-    this->move_to_debris_client = global_handle.serviceClient<arc_msgs::NavigationRequest>("move_to_goal_ms/move_to_goal");
-    this->abort_all_goals_client = global_handle.serviceClient<std_srvs::Trigger>("navigation_adapter/abort_goals");
+    this->arc_base_client = global_handle.serviceClient<arc_msgs::ToggleSchema>(
+        "arc_base/toggle_schema");
+    this->move_to_debris_client = global_handle.serviceClient<arc_msgs::NavigationRequest>(
+        "move_to_goal_ms/move_to_goal");
+    this->abort_all_goals_client = global_handle.serviceClient<std_srvs::Trigger>(
+        "navigation_adapter/abort_goals");
+    attributes_client = global_handle.serviceClient<arc_msgs::Attributes>(
+        "knowledge_manager/attributes");
 
     //Enable the move_to_goal schema since we will be using it throughout task.
     dynamic_reconfigure::BoolParameter move_to_goal_ms;
@@ -331,36 +340,67 @@ void TaskUnguidedCleanDebrisServer::StateDoneDebrisRemoval() {
     this->state = STATE_StartExploring;
 }
 
-void TaskUnguidedCleanDebrisServer::StateFailedDebrisRemoval() {
-    ROS_INFO("Failed to clear debris.");
-    dynamic_reconfigure::BoolParameter clean_debris_ms;
+void TaskUnguidedCleanDebrisServer::StateFailedDebrisRemoval() 
+{
+  ROS_INFO("Failed to clear debris.");
+  dynamic_reconfigure::BoolParameter clean_debris_ms;
+  arc_msgs::ToggleSchema request;
+  clean_debris_ms.name = "clean_debris_ms";
+  clean_debris_ms.value = false;
+  request.request.schema.push_back(clean_debris_ms); //allow robot to wander around randomly
+  this->arc_base_client.call(request);
+
+  this->state = STATE_AbandonFailedDebris;
+}
+
+void TaskUnguidedCleanDebrisServer::StateAbandonFailedDebris() 
+{
+  //enable random wandering for some amount of time so we can escape debris
+  const double ABANDON_DURATION = 5.0; //explore for 5 seconds when we can't clean a debris
+
+  this->target_debris = {};
+  if(!this->currently_abandoning) 
+  {
+    dynamic_reconfigure::BoolParameter random_wander_ms;
     arc_msgs::ToggleSchema request;
-    clean_debris_ms.name = "clean_debris_ms";
-    clean_debris_ms.value = false;
-    request.request.schema.push_back(clean_debris_ms); //allow robot to wander around randomly
+    random_wander_ms.name = "random_wander_ms";
+    random_wander_ms.value = true;
+    request.request.schema.push_back(random_wander_ms); //allow robot to wander around randomly
     this->arc_base_client.call(request);
-
-    this->state = STATE_AbandonFailedDebris;
+    this->abandon_failed_debris_timer.setPeriod(ros::Duration(ABANDON_DURATION));
+    this->abandon_failed_debris_timer.start();
+    this->currently_abandoning = true;
+    this->currently_cleaning = false;
+  }
 }
 
-void TaskUnguidedCleanDebrisServer::StateAbandonFailedDebris() {
-    //enable random wandering for some amount of time so we can escape debris
-    const double ABANDON_DURATION = 5.0; //explore for 5 seconds when we can't clean a debris
-
-    this->target_debris = {};
-    if(!this->currently_abandoning) {
-        dynamic_reconfigure::BoolParameter random_wander_ms;
-        arc_msgs::ToggleSchema request;
-        random_wander_ms.name = "random_wander_ms";
-        random_wander_ms.value = true;
-        request.request.schema.push_back(random_wander_ms); //allow robot to wander around randomly
-        this->arc_base_client.call(request);
-        this->abandon_failed_debris_timer.setPeriod(ros::Duration(ABANDON_DURATION));
-        this->abandon_failed_debris_timer.start();
-        this->currently_abandoning = true;
-        this->currently_cleaning = false;
-    }
+void TaskUnguidedCleanDebrisServer::debris_locations_cb(const arc_msgs::DetectedDebris &debris) 
+{ 
+  this->debris_list = debris;
 }
 
-void TaskUnguidedCleanDebrisServer::debris_locations_cb(const arc_msgs::DetectedDebris &debris) { this->debris_list = debris;
+bool TaskUnguidedCleanDebrisServer::suitability_cb(arc_msgs::TaskSuitability::Request& req,
+    arc_msgs::TaskSuitability::Response& res)
+{
+  arc_msgs::Attributes attributes;
+
+  if (attributes_client.call(attributes))
+  {
+    bool meets_min = attributes.response.debris_remover;
+    int suitability{ 0 };
+
+    // Debris remover is the only requirement
+    if (meets_min)
+      suitability = 100;
+
+    res.meets_minimum_requirements = meets_min;
+    res.suitability = suitability;
+  }
+  else
+  {
+    ROS_ERROR("Failed to retrieve attributes");
+    return false;
+  }
+
+  return true;
 }
