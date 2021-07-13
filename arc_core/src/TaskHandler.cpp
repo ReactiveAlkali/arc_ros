@@ -11,7 +11,9 @@ using namespace XmlRpc;
 
 typedef arc_msgs::TaskRequest TaskGoal;
 
-TaskHandler::TaskHandler() : local_handle("task_handler") 
+TaskHandler::TaskHandler() : 
+  local_handle("task_handler"), 
+  task_coordination_client("task_coordination")
 {
 //    ros::SubscribeOptions options = ros::SubscribeOptions::create<TaskGoal>("/string_topic", MAX_QUEUE_SIZE,&
 //:
@@ -82,12 +84,18 @@ int TaskHandler::getBacklogSize()
   return this->task_backlog.size();
 }
 
+//------------------------------------
+//
+// Handle task requests recieved by the robot
+//
+//------------------------------------
+
 void TaskHandler::processRequest(const TaskHandler::TaskGoal &goal) 
 {
   int suitability = isAcceptableRequest(goal);
   ROS_INFO("Processing task with suitability %d.", suitability);
 
-  if(!suitability) 
+  if(!suitability && getBacklogSize() < max_backlog) 
   {
     rejectRequest(goal);
   } 
@@ -95,15 +103,42 @@ void TaskHandler::processRequest(const TaskHandler::TaskGoal &goal)
   {
     //call upon the task if it is acceptable
     ROS_DEBUG_NAMED("TaskHandler", "Accepting task request with id %d.", goal.task_id);
-    acceptRequest(goal);
+    acceptRequest(goal, suitability);
   }
 }
 
-void TaskHandler::acceptRequest(const TaskHandler::TaskGoal goal) 
+void TaskHandler::acceptRequest(const TaskHandler::TaskGoal goal, int suitability) 
 {
-  ROS_ASSERT(isAcceptableRequest(goal));
-  //TODO test: If task is accepted, test to ensure it is in backlog immediatly after
-  this->task_backlog.push_back(goal);
+  //ROS_ASSERT(isAcceptableRequest(goal));
+  
+  // Our response to the request
+  arc_msgs::TaskCoordinationGoal task_response;
+  task_response.response.task_id = goal.task_id;
+  task_response.response.accepted = true;
+  task_response.response.suitability = suitability;
+  task_coordination_client.sendGoal(task_response);
+
+  bool confirmation_before_timeout = task_coordination_client.waitForResult(confirmation_timeout);
+
+  if (confirmation_before_timeout)
+  {
+    //TODO test: If task is accepted, test to ensure it is in backlog immediatly after
+    this->task_backlog.push_back(goal);
+    //TODO Send acknowledgement to leader
+  }
+}
+
+void TaskHandler::rejectRequest(const TaskHandler::TaskGoal goal) 
+{
+  ROS_INFO("Request rejected");
+
+  // Populate then send our response
+  arc_msgs::TaskCoordinationGoal task_response;
+  task_response.response.task_id = goal.task_id;
+  task_response.response.accepted = false;
+  task_response.response.suitability = 0;   //suitability doesn't matter, we're rejecting it anyway
+
+  task_coordination_client.sendGoal(task_response);
 }
 
 bool TaskHandler::isTaskActive(int task_id) 
@@ -204,10 +239,6 @@ bool TaskHandler::isTaskInBacklog(int task_id)
   return found;
 }
 
-void TaskHandler::rejectRequest(const TaskHandler::TaskGoal goal) 
-{
-  ROS_INFO("Request rejected");
-}
 
 void TaskHandler::process() 
 {//update tasks

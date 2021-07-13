@@ -17,7 +17,9 @@
 #include "arc_msgs/WirelessRequest.h"
 #include "arc_msgs/WirelessResponse.h"
 #include "arc_msgs/TaskRequest.h"
+#include "arc_msgs/TaskResponse.h"
 #include "arc_msgs/BotInfo.h"
+#include "nav_msgs/Odometry.h"
 
 class CommunicationManager {
 private:
@@ -37,14 +39,39 @@ private:
     ros::Publisher outgoing_responses_pub;
 
     /**
+     * Subscribe to our current position
+     */
+    ros::Subscriber base_pose_sub; //TODO Use TF support to track position instead of base pose
+
+    /**
      * Task requests that made it through the communication managers filter.
      */
     ros::Publisher task_requests_pub;
 
     /**
-     * Bot info attached to all incoming communications
+     * Publish bot info of other robot's to the knowledge manager
      */
     ros::Publisher bot_info_pub;
+
+    /**
+     * Retrieve information on our robot from the knowledge manager
+     */
+    ros::ServiceClient bot_info_client;
+
+    /**
+     * Subscribe to outgoing task responses
+     */
+    ros::Subscriber outgoing_task_response_sub;
+
+    /**
+     * Publish task confirmations
+     */
+    ros::Publisher task_confirmations_pub;
+
+    /**
+     * Keep track of the bot's current location to attach to outgoing messages
+     */
+    nav_msgs::Odometry recent_pose;
 
     ros::NodeHandle local_handle;
     ros::NodeHandle global_handle;
@@ -60,6 +87,13 @@ private:
      * @return true if task request is valid, false otherwise
      */
     bool isTaskRequestValid(arc_msgs::TaskRequest msg);
+
+    /**
+     * Populates a wireless message with information common with all messages
+     * @param msg Reference to the message to prepare
+     */
+    template<typename T>
+    void prepareWirelessMessage(T& msg);
 public:
     CommunicationManager();
 
@@ -74,6 +108,16 @@ public:
     void process_incoming_announcements_cb(arc_msgs::WirelessAnnouncement announcement);
     void process_incoming_requests_cb(arc_msgs::WirelessRequest request);
     void process_incoming_responses_cb(arc_msgs::WirelessResponse response);
+
+    /**
+     * Callbacks for sending signals
+     */
+    void sendTaskResponse(arc_msgs::TaskResponse response);
+
+    /**
+     * Callback to update our position
+     */
+    void processBasePoseCB(nav_msgs::Odometry odom);
 };
 
 #endif //PROJECT_COMMUNICATIONMANAGER_H

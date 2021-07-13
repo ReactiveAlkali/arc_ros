@@ -4,7 +4,7 @@ The launch file for a single maxbot
 
 <launch>
     <master auto="start"/>
-    <arg name="bot_id" default="0"/>
+    <arg name="bot_id" default=""/>
     <!-- The wifi handler -->
     <node pkg="arc_core" type="wifi_handler_node" name="wifi_handler">
         <param name="max_signal_range" value="5"/>

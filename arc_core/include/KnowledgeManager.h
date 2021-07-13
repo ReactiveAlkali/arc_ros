@@ -14,10 +14,14 @@
 #include "arc_msgs/BotInfo.h"
 #include "arc_msgs/BotInfoRequest.h"
 #include "arc_msgs/CurrentTeam.h"
+#include <unique_id/unique_id.h>
 #include <vector>
 
 class KnowledgeManager
 {
+public:
+  using id_t = boost::uuids::uuid;
+
 private:
   // Handles for this node
   ros::NodeHandle global_handle;
@@ -97,7 +101,7 @@ private:
    */
   struct KnownBot
   {
-    int robot_id;
+    id_t robot_id;
     int team_id;
     int role;
     int role_suitability;
@@ -112,7 +116,7 @@ private:
   /* ROBOT INFORMATION */
 
   /// The robot's unique ID number
-  int robot_id;
+  id_t robot_id;
 
   /// The robot's current team ID
   int team_id;

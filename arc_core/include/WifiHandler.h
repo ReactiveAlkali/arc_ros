@@ -16,6 +16,7 @@
 #include "arc_msgs/WirelessRequest.h"
 #include "arc_msgs/WirelessResponse.h"
 #include "nav_msgs/Odometry.h"
+#include <unique_id/unique_id.h>
 
 class WifiHandler {
 private:
@@ -69,6 +70,11 @@ private:
      * recent pose we found the robot in. Used for calculating distance away from signals.
      */
     nav_msgs::Odometry recent_position;
+
+    /**
+     * The ID of our robot
+     */
+    boost::uuids::uuid robot_id;
 
     /**
      * Check if a given signal is within our range.

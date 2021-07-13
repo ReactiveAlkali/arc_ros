@@ -1,4 +1,5 @@
 #include "../include/WifiHandler.h"
+#include "arc_msgs/BotInfoRequest.h"
 
 #define DEFAULT_ROS_RATE 10
 #define MAX_QUEUE_SIZE 1000
@@ -14,24 +15,45 @@ WifiHandler::WifiHandler() {
     local_handle.param("max_signal_range", this->max_signal_range, this->DEFAULT_MAX_SIGNAL_RANGE);
     ROS_INFO("set parameter: max_signal_range=%d", this->max_signal_range);
 
-    this->base_pose_sub = global_handle.subscribe("base_pose_ground_truth", MAX_QUEUE_SIZE, &WifiHandler::process_base_pose_cb, this);
+    this->base_pose_sub = global_handle.subscribe("base_pose_ground_truth", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_base_pose_cb, this);
     //setting up subscribers
-    this->announcements_sub = global_handle.subscribe("/arc/wifi/announcements", MAX_QUEUE_SIZE, &WifiHandler::process_announcements_cb, this);
-    this->requests_sub = global_handle.subscribe("/arc/wifi/requests", MAX_QUEUE_SIZE, &WifiHandler::process_requests_cb, this);
-    this->responses_sub = global_handle.subscribe("/arc/wifi/responses", MAX_QUEUE_SIZE, &WifiHandler::process_responses_cb, this);
+    this->announcements_sub = global_handle.subscribe("/arc/wifi/announcements", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_announcements_cb, this);
+    this->requests_sub = global_handle.subscribe("/arc/wifi/requests", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_requests_cb, this);
+    this->responses_sub = global_handle.subscribe("/arc/wifi/responses", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_responses_cb, this);
 
-    this->outgoing_announcements_sub = local_handle.subscribe("outgoing_announcements", MAX_QUEUE_SIZE, &WifiHandler::process_outgoing_announcements_cb, this);
-    this->outgoing_requests_sub = local_handle.subscribe("outgoing_requests", MAX_QUEUE_SIZE, &WifiHandler::process_outgoing_requests_cb, this);
-    this->outgoing_responses_sub = local_handle.subscribe("outgoing_responses", MAX_QUEUE_SIZE, &WifiHandler::process_outgoing_responses_cb, this);
+    this->outgoing_announcements_sub = local_handle.subscribe("outgoing_announcements", 
+        MAX_QUEUE_SIZE, &WifiHandler::process_outgoing_announcements_cb, this);
+    this->outgoing_requests_sub = local_handle.subscribe("outgoing_requests", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_outgoing_requests_cb, this);
+    this->outgoing_responses_sub = local_handle.subscribe("outgoing_responses", MAX_QUEUE_SIZE, 
+        &WifiHandler::process_outgoing_responses_cb, this);
 
     //setting up publishers
-    this->announcements_pub = global_handle.advertise<arc_msgs::WirelessAnnouncement>("/arc/wifi/announcements", MAX_QUEUE_SIZE);
-    this->requests_pub = global_handle.advertise<arc_msgs::WirelessRequest>("/arc/wifi/requests", MAX_QUEUE_SIZE);
-    this->responses_pub = global_handle.advertise<arc_msgs::WirelessResponse>("/arc/wifi/responses", MAX_QUEUE_SIZE);
+    this->announcements_pub = global_handle.advertise<arc_msgs::WirelessAnnouncement>(
+        "/arc/wifi/announcements", MAX_QUEUE_SIZE);
+    this->requests_pub = global_handle.advertise<arc_msgs::WirelessRequest>(
+        "/arc/wifi/requests", MAX_QUEUE_SIZE);
+    this->responses_pub = global_handle.advertise<arc_msgs::WirelessResponse>(
+        "/arc/wifi/responses", MAX_QUEUE_SIZE);
 
-    this->incoming_announcements_pub = local_handle.advertise<arc_msgs::WirelessAnnouncement>("incoming_announcements", MAX_QUEUE_SIZE);
-    this->incoming_requests_pub = local_handle.advertise<arc_msgs::WirelessRequest>("incoming_requests", MAX_QUEUE_SIZE);
-    this->incoming_responses_pub = local_handle.advertise<arc_msgs::WirelessResponse>("incoming_responses", MAX_QUEUE_SIZE);
+    this->incoming_announcements_pub = local_handle.advertise<arc_msgs::WirelessAnnouncement>(
+        "incoming_announcements", MAX_QUEUE_SIZE);
+    this->incoming_requests_pub = local_handle.advertise<arc_msgs::WirelessRequest>(
+        "incoming_requests", MAX_QUEUE_SIZE);
+    this->incoming_responses_pub = local_handle.advertise<arc_msgs::WirelessResponse>(
+        "incoming_responses", MAX_QUEUE_SIZE);
+
+    // Get the ID of our robot
+    ros::ServiceClient client = global_handle.serviceClient<arc_msgs::BotInfoRequest>(
+        "knowledge_manager/bot_info_request");
+    arc_msgs::BotInfoRequest req;
+    client.waitForExistence();
+    client.call(req);
+    robot_id = unique_id::fromMsg(req.response.info.robot_id);
 
     ROS_ASSERT(this->max_signal_range>=0);
     ROS_ASSERT(this->recent_position.pose.pose.position.x>=0);
@@ -67,7 +89,9 @@ void WifiHandler::process_announcements_cb(arc_msgs::WirelessAnnouncement announ
     int signal_x = announcement.sender_location.position.x;
     int signal_y = announcement.sender_location.position.y;
 
-    if(this->isSignalWithinRange(signal_x, signal_y)) {
+    if(this->isSignalWithinRange(signal_x, signal_y) 
+       && robot_id != unique_id::fromMsg(announcement.info.robot_id))
+    {
         ROS_INFO("Found an announcement signal from (%d, %d)",signal_x, signal_y);
         this->incoming_announcements_pub.publish(announcement);
     }
@@ -82,7 +106,9 @@ void WifiHandler::process_requests_cb(arc_msgs::WirelessRequest request) {
     int signal_x = request.sender_location.position.x;
     int signal_y = request.sender_location.position.y;
 
-    if(this->isSignalWithinRange(signal_x, signal_y)) {
+    if(this->isSignalWithinRange(signal_x, signal_y)
+        && robot_id != unique_id::fromMsg(request.info.robot_id)) 
+    {
         ROS_INFO("Found a request signal from (%d, %d)",signal_x, signal_y);
         this->incoming_requests_pub.publish(request);
     }
@@ -93,7 +119,9 @@ void WifiHandler::process_responses_cb(arc_msgs::WirelessResponse response) {
     int signal_x = response.sender_location.position.x;
     int signal_y = response.sender_location.position.y;
 
-    if(this->isSignalWithinRange(signal_x, signal_y)) {
+    if(this->isSignalWithinRange(signal_x, signal_y)
+        && robot_id != unique_id::fromMsg(response.info.robot_id)) 
+    {
         ROS_INFO("Found a response signal from (%d, %d)",signal_x, signal_y);
         this->incoming_responses_pub.publish(response);
     }

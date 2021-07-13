@@ -1,5 +1,5 @@
 #include <algorithm>
-
+#include <string>
 #include "../include/KnowledgeManager.h"
 #include "arc_msgs/BotInfo.h"
 #include "arc_msgs/Attributes.h"
@@ -23,11 +23,18 @@ KnowledgeManager::KnowledgeManager()
   getCompAttributes();
   getSensoryAttributes();
 
-  // Get information about this specific robot
-  if (local_handle.getParam("robot_id", robot_id))
-    ROS_INFO("Set parameter: robot_id=%d", robot_id);
+  // Get our robot ID
+  std::string id_string{};
+  if (local_handle.getParam("robot_id", id_string) && id_string != "")
+  {
+    ROS_INFO("Set parameter: robot_id=%s", id_string);
+    robot_id = unique_id::fromHexString(id_string);
+  }
   else
-    ROS_ERROR("Failed to get parameter 'robot_id'");
+  {
+    robot_id = unique_id::fromRandom();
+    ROS_INFO("Generated unique id: %s", unique_id::toHexString(robot_id));
+  }
 
   local_handle.param("team_id", team_id, 0);
   ROS_INFO("Set parameter: team_id=%d", team_id);
@@ -200,7 +207,7 @@ bool KnowledgeManager::attributesCB(arc_msgs::Attributes::Request &req,
 bool KnowledgeManager::botInfoCB(arc_msgs::BotInfoRequest::Request& req,
     arc_msgs::BotInfoRequest::Response& res)
 {
-  res.info.robot_id = robot_id;
+  res.info.robot_id = unique_id::toMsg(robot_id);
   res.info.team_id = team_id;
   res.info.role = role;
   res.info.suitability = role_suitability;
@@ -221,7 +228,7 @@ bool KnowledgeManager::currentTeamCB(arc_msgs::CurrentTeam::Request& req,
     if (bot.team_id == team_id && age < stale_duration)
     {
       arc_msgs::BotInfo bot_info;
-      bot_info.robot_id = bot.robot_id;
+      bot_info.robot_id = unique_id::toMsg(bot.robot_id);
       bot_info.team_id = bot.team_id;
       bot_info.role = bot.role;
       bot_info.suitability = bot.role_suitability;
@@ -243,7 +250,7 @@ void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
 
   // Prepare the message
   arc_msgs::BotInfo info;
-  info.robot_id = robot_id;
+  info.robot_id = unique_id::toMsg(robot_id);
   info.team_id = team_id;
   info.role = role;
   info.suitability = role_suitability;
@@ -253,22 +260,24 @@ void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
 
 void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
 {
+  id_t other_bot_id = unique_id::fromMsg(info.robot_id);
+
   // Find if we already know about this bot
   auto found{ std::find_if(known_bots.begin(), known_bots.end(), 
-      [info](KnownBot a) {
-        return (a.robot_id == info.robot_id);
+      [other_bot_id](KnownBot a) {
+        return (a.robot_id == other_bot_id);
       }) };
 
   // Add bot if we don't already know about it or update if we do
   if (found == known_bots.end())
   {
-    ROS_INFO("Adding bot %d to our knowledge", info.robot_id);
-    KnownBot new_bot{ info.robot_id, info.team_id, info.role, info.suitability, ros::Time::now() };
+    ROS_INFO("Adding bot %s to our knowledge", unique_id::toHexString(other_bot_id));
+    KnownBot new_bot{ other_bot_id, info.team_id, info.role, info.suitability, ros::Time::now() };
     known_bots.push_back(new_bot);
   }
   else
   {
-    ROS_INFO("Updating info of robot %d", found->robot_id);
+    ROS_INFO("Updating info of robot %s", unique_id::toHexString(other_bot_id));
     found->team_id = info.team_id;
     found->role = info.role;
     found->role_suitability = info.suitability;

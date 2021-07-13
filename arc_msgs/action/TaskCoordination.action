@@ -1,0 +1,6 @@
+#Task requests recieved will generate a response to accept or deny the request.  This is implemented
+#as an action to allow the task handler to timeout and cancel the task if no confirmation is recieved
+arc_msgs/TaskResponse response
+---
+bool confirmation
+---

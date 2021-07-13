@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
 	roscpp
 	rospy
 	geometry_msgs
+        uuid_msgs
 	std_msgs
 	actionlib_msgs
     dynamic_reconfigure
@@ -49,6 +50,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate messages in the 'msg' folder
 add_message_files(
    FILES
+   BotInfo.msg
    DetectedRobot.msg
    DetectedRobots.msg
    DetectedVictim.msg
@@ -57,11 +59,12 @@ add_message_files(
    DetectedDebris.msg
    DetectedMarker.msg
    Debris.msg
+   TaskConfirmation.msg
+   TaskRequest.msg
+   TaskResponse.msg
    WirelessResponse.msg
    WirelessAnnouncement.msg
    WirelessRequest.msg
-   TaskRequest.msg
-   BotInfo.msg
 )
 
 ## Generate services in the 'srv' folder
@@ -81,12 +84,14 @@ add_service_files(
 add_action_files(
   FILES
   ArcTask.action
+  TaskCoordination.action
 )
 
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
    DEPENDENCIES
    std_msgs  # Or other packages containing msgs
+   uuid_msgs
    geometry_msgs
    actionlib_msgs
    dynamic_reconfigure
