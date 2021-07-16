@@ -1,6 +1,7 @@
 #include "../include/TaskHandler.h"
 #include "ros/ros.h"
 #include "arc_msgs/TaskSuitability.h"
+#include "arc_msgs/TaskAcknowledgement.h"
 #include "std_msgs/String.h"
 #include <XmlRpcException.h>
 
@@ -13,12 +14,14 @@ typedef arc_msgs::TaskRequest TaskGoal;
 
 TaskHandler::TaskHandler() : 
   local_handle("task_handler"), 
-  task_coordination_client("task_coordination")
+  task_coordination_client("task_coordination", true)
 {
 //    ros::SubscribeOptions options = ros::SubscribeOptions::create<TaskGoal>("/string_topic", MAX_QUEUE_SIZE,&
 //:
   this->task_request_sub = this->local_handle.subscribe("task_requests", MAX_QUEUE_SIZE, 
       &TaskHandler::task_handler_goal_cb, this);
+  task_acknowledgement_pub = global_handle.advertise<arc_msgs::TaskAcknowledgement>(
+      "communication_manager/task_acknowledgement_out", MAX_QUEUE_SIZE);
 
   startupActionClients();
 }
@@ -86,7 +89,7 @@ int TaskHandler::getBacklogSize()
 
 //------------------------------------
 //
-// Handle task requests recieved by the robot
+// RECEIVED REQUESTS
 //
 //------------------------------------
 
@@ -110,6 +113,7 @@ void TaskHandler::processRequest(const TaskHandler::TaskGoal &goal)
 void TaskHandler::acceptRequest(const TaskHandler::TaskGoal goal, int suitability) 
 {
   //ROS_ASSERT(isAcceptableRequest(goal));
+  ROS_INFO("Task request accepted");
   
   // Our response to the request
   arc_msgs::TaskCoordinationGoal task_response;
@@ -122,9 +126,18 @@ void TaskHandler::acceptRequest(const TaskHandler::TaskGoal goal, int suitabilit
 
   if (confirmation_before_timeout)
   {
+    ROS_INFO("Task confirmation received");
     //TODO test: If task is accepted, test to ensure it is in backlog immediatly after
     this->task_backlog.push_back(goal);
-    //TODO Send acknowledgement to leader
+
+    // Send acknowledgement to leader
+    arc_msgs::TaskAcknowledgement acknowledgement;
+    acknowledgement.task_id = goal.task_id;
+    task_acknowledgement_pub.publish(acknowledgement);
+  }
+  else
+  {
+    ROS_INFO("Task confirmation timed out");
   }
 }
 
@@ -179,8 +192,8 @@ void TaskHandler::attemptToBeginNewTasks()
   //if we aren't doing any work, add a task to active_task list
   if(this->active_tasks.empty()) 
   {
-    ROS_INFO_NAMED("TaskHandler", "Currently [%d] active tasks, and [%d] tasks in queue.", 
-        this->getNumActiveTasks(), this->getBacklogSize());
+    //ROS_INFO_NAMED("TaskHandler", "Currently [%d] active tasks, and [%d] tasks in queue.", 
+    //    this->getNumActiveTasks(), this->getBacklogSize());
     if(this->getBacklogSize()>0) 
     {
       ROS_INFO("starting task!)");

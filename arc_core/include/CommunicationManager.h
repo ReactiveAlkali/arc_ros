@@ -16,6 +16,7 @@
 #include "arc_msgs/WirelessAnnouncement.h"
 #include "arc_msgs/WirelessRequest.h"
 #include "arc_msgs/WirelessResponse.h"
+#include "arc_msgs/TaskAcknowledgement.h"
 #include "arc_msgs/TaskRequest.h"
 #include "arc_msgs/TaskResponse.h"
 #include "arc_msgs/BotInfo.h"
@@ -62,6 +63,11 @@ private:
      * Subscribe to outgoing task responses
      */
     ros::Subscriber outgoing_task_response_sub;
+
+    /**
+     * Subscribe to outgoing task acknowledgements
+     */
+    ros::Subscriber outgoing_task_acknowledgement_sub;
 
     /**
      * Publish task confirmations
@@ -113,6 +119,11 @@ public:
      * Callbacks for sending signals
      */
     void sendTaskResponse(arc_msgs::TaskResponse response);
+
+    /**
+     * Callback for sending an outgoing task acknowledgement
+     */
+    void sendTaskAcknowledgement(arc_msgs::TaskAcknowledgement acknowledgement);
 
     /**
      * Callback to update our position

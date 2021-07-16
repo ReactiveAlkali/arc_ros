@@ -5,6 +5,9 @@ project(arc_integration_tests)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  arc_msgs
+  std_srvs
+  dynamic_reconfigure
   roscpp
   rospy
 )
@@ -129,12 +132,17 @@ include_directories(
 ## Declare a C++ executable
 add_executable(mock_sensor_publisher src/mock_sensor_publisher_node.cpp)
 add_executable(mock_cmd_publisher src/mock_cmd_publisher_node.cpp)
+add_executable(mock_task_assigner src/mock_task_assigner_node.cpp)
 
 target_link_libraries(mock_sensor_publisher
   ${catkin_LIBRARIES}
 )
 
 target_link_libraries(mock_cmd_publisher
+  ${catkin_LIBRARIES}
+)
+
+target_link_libraries(mock_task_assigner
   ${catkin_LIBRARIES}
 )
 

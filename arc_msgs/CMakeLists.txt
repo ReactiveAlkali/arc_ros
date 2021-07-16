@@ -59,6 +59,7 @@ add_message_files(
    DetectedDebris.msg
    DetectedMarker.msg
    Debris.msg
+   TaskAcknowledgement.msg
    TaskConfirmation.msg
    TaskRequest.msg
    TaskResponse.msg

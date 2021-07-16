@@ -42,6 +42,11 @@ protected:
    */
   ros::Subscriber task_request_sub;
 
+  /**
+   * Publish task acknowledgements
+   */
+  ros::Publisher task_acknowledgement_pub;
+
   //Handles for this node
   ros::NodeHandle global_handle;
   ros::NodeHandle local_handle;

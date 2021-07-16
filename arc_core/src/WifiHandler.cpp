@@ -102,7 +102,7 @@ void WifiHandler::process_base_pose_cb(nav_msgs::Odometry odom) {
 }
 
 void WifiHandler::process_requests_cb(arc_msgs::WirelessRequest request) {
-    ROS_DEBUG("Received request from outside world");
+    ROS_INFO("Received request from outside world");
     int signal_x = request.sender_location.position.x;
     int signal_y = request.sender_location.position.y;
 

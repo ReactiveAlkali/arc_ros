@@ -47,6 +47,8 @@ CommunicationManager::CommunicationManager()
       MAX_QUEUE_SIZE);
   outgoing_task_response_sub = local_handle.subscribe("task_response_out", MAX_QUEUE_SIZE,
       &CommunicationManager::sendTaskResponse, this);
+  outgoing_task_acknowledgement_sub = local_handle.subscribe("task_acknowledgement_out",
+      MAX_QUEUE_SIZE, &CommunicationManager::sendTaskAcknowledgement, this);
 
   // Handling information about robots
   this->bot_info_pub = local_handle.advertise<arc_msgs::BotInfo>("bot_information", 
@@ -150,19 +152,43 @@ void CommunicationManager::process_incoming_responses_cb(arc_msgs::WirelessRespo
   {
     arc_msgs::TaskConfirmation confirmation;
     
-    ROS_ASSERT(response.response.bools.at(0).name == "confirmation");
-    ROS_ASSERT(response.response.ints.at(0).name == "task_id");
+    ROS_ASSERT(response.response.bools.back().name == "confirmation");
+    ROS_ASSERT(response.response.ints.back().name == "task_id");
 
-    confirmation.confirmation = response.response.bools.at(0).value;
-    confirmation.task_id = response.response.ints.at(0).value; 
+    confirmation.confirmation = response.response.bools.back().value;
+    confirmation.task_id = response.response.ints.back().value; 
     task_confirmations_pub.publish(confirmation);
   }
 
 }
 
+//-------------------------------------
+//
+// OUTGOING MESSAGES
+//
+//-------------------------------------
+
+void CommunicationManager::sendTaskAcknowledgement(arc_msgs::TaskAcknowledgement acknowledgement)
+{
+  ROS_INFO("Sending task %d acknowledgement", acknowledgement.task_id);
+  arc_msgs::WirelessResponse wifi_response;
+  prepareWirelessMessage(wifi_response);
+
+  wifi_response.type = wifi_response.TASK_ACKNOWLEDGEMENT;
+  dynamic_reconfigure::IntParameter task_id;
+
+  // Populate acknowledgement data in the wifi message
+  task_id.name = "task_id";
+  task_id.value = acknowledgement.task_id;
+  wifi_response.response.ints.push_back(task_id);
+
+  outgoing_responses_pub.publish(wifi_response);
+}
+
 void CommunicationManager::sendTaskResponse(arc_msgs::TaskResponse response)
 {
-  //TODO Populate with common info
+  ROS_INFO("Sending an outgoing task response");
+
   arc_msgs::WirelessResponse wifi_response;
   wifi_response.type = wifi_response.TASK_RESPONSE;
 

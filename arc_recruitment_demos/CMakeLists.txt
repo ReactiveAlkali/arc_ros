@@ -9,6 +9,7 @@ project(arc_recruitment_demos)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   actionlib
+  actionlib_msgs
   arc_msgs
   roscpp
   rospy

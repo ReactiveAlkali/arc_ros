@@ -23,6 +23,8 @@ MinimalRecruitmentManager::MinimalRecruitmentManager() :
       "communication_manager/task_response_out", MAX_QUEUE_SIZE);
   task_confirmation_sub = global_handle.subscribe("communication_manager/task_confirmations",
       MAX_QUEUE_SIZE, &MinimalRecruitmentManager::taskConfirmationCB, this);
+
+  task_coordination_server.start();
 }
 
 void MinimalRecruitmentManager::process() 
@@ -43,6 +45,7 @@ void MinimalRecruitmentManager::task_request_cb(const arc_msgs::TaskRequest &req
 
 void MinimalRecruitmentManager::taskCoordinationCB()
 {
+  ROS_INFO("Sending task response");
   arc_msgs::TaskResponse response = task_coordination_server.acceptNewGoal()->response;
   task_id = response.task_id;
   task_response_pub.publish(response);
