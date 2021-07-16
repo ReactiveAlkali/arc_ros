@@ -27,13 +27,13 @@ KnowledgeManager::KnowledgeManager()
   std::string id_string{};
   if (local_handle.getParam("robot_id", id_string) && id_string != "")
   {
-    ROS_INFO("Set parameter: robot_id=%s", id_string);
+    ROS_INFO("Set parameter: robot_id=%s", id_string.c_str());
     robot_id = unique_id::fromHexString(id_string);
   }
   else
   {
     robot_id = unique_id::fromRandom();
-    ROS_INFO("Generated unique id: %s", unique_id::toHexString(robot_id));
+    ROS_INFO("Generated unique id: %s", unique_id::toHexString(robot_id).c_str());
   }
 
   local_handle.param("team_id", team_id, 0);
@@ -246,7 +246,7 @@ bool KnowledgeManager::currentTeamCB(arc_msgs::CurrentTeam::Request& req,
 
 void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
 {
-  ROS_INFO("Publishing robot information");
+  //ROS_INFO("Publishing robot information");
 
   // Prepare the message
   arc_msgs::BotInfo info;
@@ -271,13 +271,13 @@ void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
   // Add bot if we don't already know about it or update if we do
   if (found == known_bots.end())
   {
-    ROS_INFO("Adding bot %s to our knowledge", unique_id::toHexString(other_bot_id));
+    ROS_INFO("Adding bot %s to our knowledge", unique_id::toHexString(other_bot_id).c_str());
     KnownBot new_bot{ other_bot_id, info.team_id, info.role, info.suitability, ros::Time::now() };
     known_bots.push_back(new_bot);
   }
   else
   {
-    ROS_INFO("Updating info of robot %s", unique_id::toHexString(other_bot_id));
+    ROS_INFO("Updating info about robot %s", unique_id::toHexString(other_bot_id).c_str());
     found->team_id = info.team_id;
     found->role = info.role;
     found->role_suitability = info.suitability;
