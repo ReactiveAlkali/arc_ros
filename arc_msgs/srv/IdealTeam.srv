@@ -1,0 +1,4 @@
+---
+int32[] role_ids
+int32[] minimums
+int32[] maximums

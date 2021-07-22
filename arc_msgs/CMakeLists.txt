@@ -59,6 +59,7 @@ add_message_files(
    DetectedDebris.msg
    DetectedMarker.msg
    Debris.msg
+   Role.msg
    TaskAcknowledgement.msg
    TaskConfirmation.msg
    TaskRequest.msg
@@ -70,15 +71,17 @@ add_message_files(
 
 ## Generate services in the 'srv' folder
 add_service_files(
-   FILES
-   NavigationRequest.srv
-   ToggleSchema.srv
-   MoveAlterableObject.srv
-   DropMarker.srv
+   FILES 
    Attributes.srv
    BotInfoRequest.srv
    CurrentTeam.srv
+   DropMarker.srv
+   IdealTeam.srv
+   MoveAlterableObject.srv
+   NavigationRequest.srv
+   Roles.srv
    TaskSuitability.srv
+   ToggleSchema.srv
 )
 
 ## Generate actions in the 'action' folder

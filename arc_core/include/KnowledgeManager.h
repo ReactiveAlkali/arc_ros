@@ -14,6 +14,8 @@
 #include "arc_msgs/BotInfo.h"
 #include "arc_msgs/BotInfoRequest.h"
 #include "arc_msgs/CurrentTeam.h"
+#include "arc_msgs/IdealTeam.h"
+#include "arc_msgs/Roles.h"
 #include <unique_id/unique_id.h>
 #include <vector>
 
@@ -93,8 +95,62 @@ private:
   /// Whether the robot has a victim marker detector
   bool victim_marker_detector;
 
+  //-----------------------------------
+  //
+  // ROLES
+  //
+  //-----------------------------------
 
-  /* ENCOUNTERED ROBOTS */
+  struct Role
+  {
+    int role_id;                                /// The ID number of the role
+    std::map<std::string, double> expected_tasks{};  /// The tasks expected of this role
+  };
+  
+  /**
+   * All the defined roles
+   */
+  std::vector<Role> roles;
+
+  /**
+   * Get the defined roles during setup
+   */
+  void getRoles();
+
+  /**
+   * Service to provide all the known roles
+   */
+  ros::ServiceServer roles_server;
+
+  //-----------------------------------
+  //
+  // IDEAL TEAM
+  //
+  //-----------------------------------
+
+  // The ideal minumum and maximum robots of a specific role
+  struct Ideal
+  {
+    int role_id;
+    int minimum;
+    int maximum;
+  };
+
+  std::vector<Ideal> ideal_team;
+
+  ros::ServiceServer ideal_team_server;
+
+  /**
+   * Gets the ideal team during setup.  The ideal team is given as a string parameter with
+   * the following format:  role_id,min,max|role_id,min,max
+   */
+  void getIdealTeam();
+
+  //-----------------------------------
+  //
+  // ROBOT INFORMATION
+  //
+  //-----------------------------------
 
   /**
    * Stores information on an encountered robot
@@ -102,7 +158,7 @@ private:
   struct KnownBot
   {
     id_t robot_id;
-    int team_id;
+    id_t team_id;
     int role;
     int role_suitability;
     ros::Time timestamp;
@@ -113,19 +169,16 @@ private:
    */
   std::vector<KnownBot> known_bots;
 
-  /* ROBOT INFORMATION */
-
   /// The robot's unique ID number
   id_t robot_id;
 
   /// The robot's current team ID
-  int team_id;
+  id_t team_id;
 
   /// Timestamp of when we last heard from our team
   ros::Time team_timestamp;
 
   /// The robot's current role
-  /// 0: team leader, 1: coordinator/explorer, 2: explorer, 3: debris remover
   int role;
 
   /// The robot's suitability to the current role
@@ -156,6 +209,7 @@ private:
   ros::Timer info_timer;
 
 
+
   /* SETUP */
 
   void getPhysAttributes();
@@ -163,6 +217,8 @@ private:
   void getCompAttributes();
 
   void getSensoryAttributes();
+
+  void getIDs();
 
 public:
 
@@ -196,6 +252,20 @@ public:
    */
   bool currentTeamCB(arc_msgs::CurrentTeam::Request& req,
       arc_msgs::CurrentTeam::Response& res);
+
+  /**
+   * Fullfills requests to retrieve the characteristics of all the known roles 
+   * @param req Request sent to the server
+   * @param res Our response to the request
+   */
+  bool rolesCB(arc_msgs::Roles::Request& req, arc_msgs::Roles::Response& res);
+  
+  /**
+   * Fullfills requests to retrieve the definition of the ideal team
+   * @param req The request made to the service server
+   * @param res Our response to the request
+   */
+  bool idealTeamCB(arc_msgs::IdealTeam::Request& req, arc_msgs::IdealTeam::Response& res);
 
   /**
    * Timer callback to publish self info

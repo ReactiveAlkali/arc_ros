@@ -23,25 +23,13 @@ KnowledgeManager::KnowledgeManager()
   getCompAttributes();
   getSensoryAttributes();
 
-  // Get our robot ID
-  std::string id_string{};
-  if (local_handle.getParam("robot_id", id_string) && id_string != "")
-  {
-    ROS_INFO("Set parameter: robot_id=%s", id_string.c_str());
-    robot_id = unique_id::fromHexString(id_string);
-  }
-  else
-  {
-    robot_id = unique_id::fromRandom();
-    ROS_INFO("Generated unique id: %s", unique_id::toHexString(robot_id).c_str());
-  }
-
-  local_handle.param("team_id", team_id, 0);
-  ROS_INFO("Set parameter: team_id=%d", team_id);
   local_handle.param("role", role, 0);
   ROS_INFO("Set parameter: role=%d", role);
 
   team_timestamp = ros::Time::now();
+  getIDs();
+  getRoles();
+  getIdealTeam();
 
   // TODO Role suitability calculation
   role_suitability = 100;
@@ -53,6 +41,9 @@ KnowledgeManager::KnowledgeManager()
       this);
   current_team_server = local_handle.advertiseService("current_team", 
       &KnowledgeManager::currentTeamCB, this);
+  roles_server = local_handle.advertiseService("roles", &KnowledgeManager::rolesCB, this);
+  ideal_team_server = local_handle.advertiseService("ideal_team", &KnowledgeManager::idealTeamCB,
+      this);
 
   // Advertise publishers
   bot_info_pub = local_handle.advertise<arc_msgs::BotInfo>("bot_info", MAX_QUEUE_SIZE);
@@ -62,6 +53,112 @@ KnowledgeManager::KnowledgeManager()
 
   bot_info_sub = global_handle.subscribe("communication_manager/bot_information", MAX_QUEUE_SIZE,
       &KnowledgeManager::updateInfo, this);
+}
+
+//-------------------------------------
+//
+// SETUP
+//
+//-------------------------------------
+
+void KnowledgeManager::getIDs()
+{
+  std::string id_string{};
+
+  // Get our robot ID
+  if (local_handle.getParam("robot_id", id_string) && id_string != "")
+  {
+    ROS_INFO("Set parameter: robot_id=%s", id_string.c_str());
+    robot_id = unique_id::fromHexString(id_string);
+  }
+  else
+  {
+    robot_id = unique_id::fromRandom();
+    ROS_INFO("Generated unique robot ID: %s", unique_id::toHexString(robot_id).c_str());
+  }
+
+  // Get our team ID
+  if (local_handle.getParam("team_id", id_string) && id_string != "")
+  {
+    ROS_INFO("Set parameter: team_id=%s", id_string.c_str());
+    team_id = unique_id::fromHexString(id_string);
+  }
+  else
+  {
+    team_id = unique_id::fromRandom();
+    ROS_INFO("Generating unique team ID: %s", unique_id::toHexString(team_id).c_str());
+  }
+}
+
+void KnowledgeManager::getIdealTeam()
+{
+  std::string ideal_team_string;
+
+  if (local_handle.getParam("ideal_team", ideal_team_string))
+    ROS_DEBUG("Got ideal team string");
+  else
+    ROS_ERROR("Failed to get ideal team string");
+
+  // Parse the string
+  std::stringstream ideal_team_stream(ideal_team_string);
+  std::string token;
+
+  while (getline(ideal_team_stream, token, '|'))
+  {
+    Ideal temp{};
+    
+    // Extract the ideal team characteristics of a role
+    std::stringstream ideal_stream(token);
+    getline(ideal_stream, token, ',');
+    temp.role_id = std::stoi(token);
+    getline(ideal_stream, token, ',');
+    temp.minimum = std::stoi(token);
+    getline(ideal_stream, token, ',');
+    temp.maximum = std::stoi(token);
+
+    ideal_team.push_back(temp);
+  }
+}
+
+/*
+ * Roles are given as a string with the following format:
+ *   roleID1:task1,weight1;task2,wieght2|roleID2:task1,weight1
+ */
+void KnowledgeManager::getRoles()
+{
+  std::string roles_string;
+
+  if (local_handle.getParam("roles", roles_string))
+    ROS_DEBUG("Got roles string");
+  else
+    ROS_ERROR("Failed to get roles string");
+
+  // Parse the string roles
+  std::stringstream roles(roles_string);
+  std::string token;
+
+  while (getline(roles, token, '|'))
+  {
+    Role temp{};
+
+    // Parse the role string
+    std::stringstream role(token);
+    getline(role, token, ':');
+    temp.role_id = std::stoi(token);
+
+    // Extract the task list
+    while (getline(role, token, ';'))
+    {
+      std::stringstream task(token);
+      std::string name, weight;
+      getline(task, name, ',');
+      getline(task, weight, ',');
+
+      temp.expected_tasks[name] = std::stod(weight);
+    }
+
+    this->roles.push_back(temp);
+  }
 }
 
 void KnowledgeManager::getPhysAttributes()
@@ -173,6 +270,43 @@ void KnowledgeManager::run()
  * SERVICE CALLBACKS
  */
 
+bool KnowledgeManager::idealTeamCB(arc_msgs::IdealTeam::Request& req, 
+    arc_msgs::IdealTeam::Response& res)
+{
+  for (auto element : ideal_team)
+  {
+    res.role_ids.push_back(element.role_id);
+    res.minimums.push_back(element.minimum);
+    res.maximums.push_back(element.maximum);
+  }
+
+  return true;
+}
+
+
+bool KnowledgeManager::rolesCB(arc_msgs::Roles::Request& req, arc_msgs::Roles::Response& res)
+{
+  ROS_DEBUG("Roles request recieved");
+
+  // Create a role message for each role
+  for (auto role : roles)
+  {
+    arc_msgs::Role role_msg;
+    role_msg.role_id = role.role_id;
+
+    // Get the tasks and weights of the role
+    for (auto task : role.expected_tasks)
+    {
+      role_msg.tasks.push_back(task.first);
+      role_msg.weights.push_back(task.second);
+    }
+
+    res.roles.push_back(role_msg);
+  }
+
+  return true;
+}
+
 bool KnowledgeManager::attributesCB(arc_msgs::Attributes::Request &req,
     arc_msgs::Attributes::Response &res)
 {
@@ -208,7 +342,7 @@ bool KnowledgeManager::botInfoCB(arc_msgs::BotInfoRequest::Request& req,
     arc_msgs::BotInfoRequest::Response& res)
 {
   res.info.robot_id = unique_id::toMsg(robot_id);
-  res.info.team_id = team_id;
+  res.info.team_id = unique_id::toMsg(team_id);
   res.info.role = role;
   res.info.suitability = role_suitability;
 
@@ -229,7 +363,7 @@ bool KnowledgeManager::currentTeamCB(arc_msgs::CurrentTeam::Request& req,
     {
       arc_msgs::BotInfo bot_info;
       bot_info.robot_id = unique_id::toMsg(bot.robot_id);
-      bot_info.team_id = bot.team_id;
+      bot_info.team_id = unique_id::toMsg(bot.team_id);
       bot_info.role = bot.role;
       bot_info.suitability = bot.role_suitability;
     
@@ -251,7 +385,7 @@ void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
   // Prepare the message
   arc_msgs::BotInfo info;
   info.robot_id = unique_id::toMsg(robot_id);
-  info.team_id = team_id;
+  info.team_id = unique_id::toMsg(team_id);
   info.role = role;
   info.suitability = role_suitability;
 
@@ -261,6 +395,7 @@ void KnowledgeManager::publishInfo(const ros::TimerEvent& event)
 void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
 {
   id_t other_bot_id = unique_id::fromMsg(info.robot_id);
+  id_t other_bot_team = unique_id::fromMsg(info.team_id);
 
   // Find if we already know about this bot
   auto found{ std::find_if(known_bots.begin(), known_bots.end(), 
@@ -272,13 +407,13 @@ void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
   if (found == known_bots.end())
   {
     ROS_INFO("Adding bot %s to our knowledge", unique_id::toHexString(other_bot_id).c_str());
-    KnownBot new_bot{ other_bot_id, info.team_id, info.role, info.suitability, ros::Time::now() };
+    KnownBot new_bot{ other_bot_id, other_bot_team, info.role, info.suitability, ros::Time::now() };
     known_bots.push_back(new_bot);
   }
   else
   {
     ROS_INFO("Updating info about robot %s", unique_id::toHexString(other_bot_id).c_str());
-    found->team_id = info.team_id;
+    found->team_id = other_bot_team;
     found->role = info.role;
     found->role_suitability = info.suitability;
     found->timestamp = ros::Time::now();
