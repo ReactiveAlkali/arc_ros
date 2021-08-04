@@ -38,7 +38,7 @@ The launch file for a single maxbot
         <param name="victim_marker_detector" value="true"/>
         <param name="robot_id" value="$(arg bot_id)"/>
         <param name="roles" value="0:explore,0.03;explore_frontier,0.04;find_victim,0.03;manage_team,0.8;encounter,0.1|1:explore,0.05;explore_frontier,0.6;find_victim,0.35|2:explore,0.05;explore_frontier,0.1;find_victim,0.05;confirm_victim,0.5;manage_team,0.2;encounter,0.2"/>
-        <param name="ideal_team" value="0,1,1|1,3,10|2,1,2"/>
+        <param name="ideal_team" value="0,1,1,100|1,3,10,30|2,1,2,50"/>
         <param name="team_id" value="41b39c5b-4ca0-48b9-af74-d5694f46abcc"/>
     </node>
 

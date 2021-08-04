@@ -60,6 +60,7 @@ add_message_files(
    DetectedMarker.msg
    Debris.msg
    Role.msg
+   SetRole.msg
    TaskAcknowledgement.msg
    TaskConfirmation.msg
    TaskRequest.msg

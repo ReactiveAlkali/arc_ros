@@ -6,6 +6,8 @@
 *   encountered robots.
 */
 
+//TODO Should store a list of valid tasks and pass this information to modules that require it
+
 #ifndef ARC_CORE_KNOWLEDGEMANAGER_H
 #define ARC_CORE_KNOWLEDGEMANAGER_H
 
@@ -16,7 +18,9 @@
 #include "arc_msgs/CurrentTeam.h"
 #include "arc_msgs/IdealTeam.h"
 #include "arc_msgs/Roles.h"
+#include "arc_msgs/SetRole.h"
 #include <unique_id/unique_id.h>
+#include <std_msgs/Int32.h>
 #include <vector>
 
 class KnowledgeManager
@@ -122,9 +126,11 @@ private:
    */
   ros::ServiceServer roles_server;
 
+  ros::Subscriber update_role_sub;
+
   //-----------------------------------
   //
-  // IDEAL TEAM
+  // TEAM
   //
   //-----------------------------------
 
@@ -134,6 +140,7 @@ private:
     int role_id;
     int minimum;
     int maximum;
+    int importance;
   };
 
   std::vector<Ideal> ideal_team;
@@ -142,7 +149,7 @@ private:
 
   /**
    * Gets the ideal team during setup.  The ideal team is given as a string parameter with
-   * the following format:  role_id,min,max|role_id,min,max
+   * the following format:  role_id,min,max,importance|role_id,min,max,importance
    */
   void getIdealTeam();
 
@@ -183,6 +190,8 @@ private:
 
   /// The robot's suitability to the current role
   int role_suitability;
+
+  ros::Subscriber update_team_sub;
 
   /* COMMUNICATION  */
 
@@ -276,6 +285,18 @@ public:
    * Updates our information about other robots
    */
   void updateInfo(const arc_msgs::BotInfo& info);
+
+  /**
+   * Updates our team affiliation
+   * @param new_team The ID of the new team we are part of
+   */
+  void updateTeamCB(const uuid_msgs::UniqueID& new_team);
+  
+  /**
+   * Updates our current role
+   * @param new_role The ID of our new role
+   */
+  void updateRoleCB(const arc_msgs::SetRole& new_role);
 };
 
 #endif //ARC_CORE_KNOWLEDGEMANAGER_H

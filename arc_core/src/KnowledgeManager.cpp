@@ -37,6 +37,7 @@ KnowledgeManager::KnowledgeManager()
   // Advertise services
   attributes_server = this->local_handle.advertiseService("attributes", 
       &KnowledgeManager::attributesCB, this);
+  //TODO Makes more sense to call this a service rather than a requests
   bot_info_server = local_handle.advertiseService("bot_info_request", &KnowledgeManager::botInfoCB,
       this);
   current_team_server = local_handle.advertiseService("current_team", 
@@ -51,8 +52,13 @@ KnowledgeManager::KnowledgeManager()
   info_timer = local_handle.createTimer(ros::Duration(info_pub_period), 
       &KnowledgeManager::publishInfo, this);
 
+  // Setup subscribers
   bot_info_sub = global_handle.subscribe("communication_manager/bot_information", MAX_QUEUE_SIZE,
       &KnowledgeManager::updateInfo, this);
+  update_role_sub = local_handle.subscribe("update_role", MAX_QUEUE_SIZE, 
+      &KnowledgeManager::updateRoleCB, this);
+  update_team_sub = local_handle.subscribe("update_team", MAX_QUEUE_SIZE, 
+      &KnowledgeManager::updateTeamCB, this);
 }
 
 //-------------------------------------
@@ -115,6 +121,8 @@ void KnowledgeManager::getIdealTeam()
     temp.minimum = std::stoi(token);
     getline(ideal_stream, token, ',');
     temp.maximum = std::stoi(token);
+    getline(ideal_stream, token, ',');
+    temp.importance = std::stoi(token);
 
     ideal_team.push_back(temp);
   }
@@ -278,6 +286,7 @@ bool KnowledgeManager::idealTeamCB(arc_msgs::IdealTeam::Request& req,
     res.role_ids.push_back(element.role_id);
     res.minimums.push_back(element.minimum);
     res.maximums.push_back(element.maximum);
+    res.importances.push_back(element.importance);
   }
 
   return true;
@@ -418,4 +427,15 @@ void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
     found->role_suitability = info.suitability;
     found->timestamp = ros::Time::now();
   }
+}
+
+void KnowledgeManager::updateTeamCB(const uuid_msgs::UniqueID& new_team)
+{
+  team_id = unique_id::fromMsg(new_team);
+}
+
+void KnowledgeManager::updateRoleCB(const arc_msgs::SetRole& new_role)
+{
+  role = new_role.role_id;
+  role_suitability = new_role.suitability;
 }
