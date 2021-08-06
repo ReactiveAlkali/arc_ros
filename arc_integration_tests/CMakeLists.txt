@@ -133,6 +133,11 @@ include_directories(
 add_executable(mock_sensor_publisher src/mock_sensor_publisher_node.cpp)
 add_executable(mock_cmd_publisher src/mock_cmd_publisher_node.cpp)
 add_executable(mock_task_assigner src/mock_task_assigner_node.cpp)
+add_executable(role_manager_test src/role_manager_test.cpp)
+
+target_link_libraries(role_manager_test
+  ${catkin_LIBRARIES}
+)
 
 target_link_libraries(mock_sensor_publisher
   ${catkin_LIBRARIES}

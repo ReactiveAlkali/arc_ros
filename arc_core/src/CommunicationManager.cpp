@@ -101,6 +101,7 @@ void CommunicationManager::process_incoming_announcements_cb(
     arc_msgs::WirelessAnnouncement announcement) 
 {
   ROS_DEBUG("Processing incoming wireless announcement");
+  bot_info_pub.publish(announcement.info);
 }
 
 bool CommunicationManager::isTaskRequestValid(arc_msgs::TaskRequest msg) 

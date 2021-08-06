@@ -13,6 +13,7 @@
 
 RoleManager::RoleManager()
 {
+  ROS_INFO("Setting up role manager");
   ros::NodeHandle global_handle;
   ros::NodeHandle local_handle("role_manager");
   this->global_handle = global_handle;
@@ -49,6 +50,7 @@ void RoleManager::run()
 
 void RoleManager::roleCheckCB(const ros::TimerEvent& event)
 {
+  ROS_INFO("Performing role check");
   arc_msgs::CurrentTeam current_team;
   arc_msgs::BotInfoRequest bot_info_req;
   arc_msgs::Roles roles;
@@ -92,6 +94,7 @@ void RoleManager::roleCheckCB(const ros::TimerEvent& event)
 int RoleManager::roleImportance(arc_msgs::Role& role, arc_msgs::CurrentTeamResponse& current_team,
     int suitability)
 {
+  ROS_INFO("Calculating role importance weighting");
   long like_agents{ std::count_if(current_team.team.begin(), current_team.team.end(),
                                  [role] (arc_msgs::BotInfo& team_member) 
                                  {
@@ -145,11 +148,12 @@ int RoleManager::roleImportance(arc_msgs::Role& role, arc_msgs::CurrentTeamRespo
 //  either here or in the knowledge manager
 int RoleManager::roleSuitability(arc_msgs::Role& role)
 {
+  ROS_INFO("Calculating role suitability");
   int suitability = 0;
   
   for (int i{ 0 }; i < role.tasks.size(); ++i)
   {
-    auto& task{ role.tasks[i] };
+    std::string task{ "task_" + role.tasks[i] };
     double task_weight{ role.weights[i] };
     arc_msgs::TaskSuitability task_suitability;
 

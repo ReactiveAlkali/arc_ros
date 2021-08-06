@@ -31,8 +31,8 @@ KnowledgeManager::KnowledgeManager()
   getRoles();
   getIdealTeam();
 
-  // TODO Role suitability calculation
-  role_suitability = 100;
+  // TODO Role suitability calculation, this value gets corrected in the next role check
+  role_suitability = 0;
 
   // Advertise services
   attributes_server = this->local_handle.advertiseService("attributes", 
@@ -431,11 +431,13 @@ void KnowledgeManager::updateInfo(const arc_msgs::BotInfo& info)
 
 void KnowledgeManager::updateTeamCB(const uuid_msgs::UniqueID& new_team)
 {
+  ROS_DEBUG("Team ID updated to %s", unique_id::toHexString(unique_id::fromMsg(new_team)).c_str());
   team_id = unique_id::fromMsg(new_team);
 }
 
 void KnowledgeManager::updateRoleCB(const arc_msgs::SetRole& new_role)
 {
+  ROS_DEBUG("Role set to %d with suitability %d", new_role.role_id, new_role.suitability);
   role = new_role.role_id;
   role_suitability = new_role.suitability;
 }

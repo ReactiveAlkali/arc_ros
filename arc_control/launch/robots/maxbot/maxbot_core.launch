@@ -13,6 +13,9 @@ The launch file for a single maxbot
     <!-- The communication manager -->
     <node pkg="arc_core" type="communication_manager" name="communication_manager" output="screen"></node>
 
+    <!-- The role manager -->
+    <node pkg="arc_core" type="role_manager" name="role_manager" output="screen"></node>
+
     <!-- The victim tracker -->   
 <!--    <node pkg="arc_core" type="victim_tracker" name="victim_tracker" output="screen">
     </node>
